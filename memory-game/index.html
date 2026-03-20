@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>絵合わせ</title>
+  <style>
+    /* =============================================
+       リセット・基本設定
+    ============================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+      background-color: #fdf6ee;
+      color: #4a3728;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 16px;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 480px;
+      min-height: calc(100vh - 32px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* =============================================
+       共通カード（各画面の枠）
+    ============================================= */
+    .card {
+      background-color: #fffaf4;
+      border-radius: 20px;
+      padding: 32px 24px;
+      box-shadow: 0 4px 16px rgba(180, 120, 60, 0.15);
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* =============================================
+       共通ボタン
+    ============================================= */
+    .btn {
+      display: block;
+      width: 100%;
+      min-height: 64px;
+      border: none;
+      border-radius: 16px;
+      font-size: 22px;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 12px 16px;
+      line-height: 1.4;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:active {
+      opacity: 0.85;
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background-color: #e07b39;
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(224, 123, 57, 0.35);
+    }
+
+    .btn-primary:hover {
+      background-color: #c96a28;
+    }
+
+    .btn-secondary {
+      background-color: #f2d9bc;
+      color: #4a3728;
+      box-shadow: 0 2px 6px rgba(180, 120, 60, 0.15);
+    }
+
+    .btn-secondary:hover {
+      background-color: #e8c9a4;
+    }
+
+    /* =============================================
+       画面の表示・非表示制御
+    ============================================= */
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    /* =============================================
+       スタート画面
+    ============================================= */
+    #screen-start {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+
+    .game-title-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .game-title-icon {
+      font-size: 56px;
+    }
+
+    .game-title {
+      font-size: 32px;
+      font-weight: bold;
+      color: #c96a28;
+    }
+
+    .game-subtitle {
+      font-size: 18px;
+      color: #8c6b4a;
+    }
+
+    .start-info {
+      background-color: #fdf0e0;
+      border-radius: 14px;
+      padding: 20px;
+      width: 100%;
+    }
+
+    .start-info-text {
+      font-size: 20px;
+      color: #4a3728;
+      line-height: 1.8;
+    }
+
+    .start-info-text strong {
+      font-size: 26px;
+      color: #e07b39;
+    }
+
+    /* =============================================
+       ゲーム画面
+    ============================================= */
+    #screen-game {
+      gap: 16px;
+    }
+
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .game-stat {
+      font-size: 17px;
+      color: #8c6b4a;
+    }
+
+    .game-stat strong {
+      font-size: 22px;
+      color: #e07b39;
+      font-weight: bold;
+    }
+
+    /* カードグリッド（4列×4行） */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    /* 個々のカード */
+    .memory-card {
+      aspect-ratio: 1 / 1;
+      border-radius: 12px;
+      cursor: pointer;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+      /* 3Dフリップ用 */
+      perspective: 600px;
+    }
+
+    .memory-card-inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.35s ease;
+      border-radius: 12px;
+    }
+
+    /* めくれた状態 */
+    .memory-card.flipped .memory-card-inner {
+      transform: rotateY(180deg);
+    }
+
+    /* 裏面・表面 共通 */
+    .memory-card-front,
+    .memory-card-back {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 裏面（伏せた状態） */
+    .memory-card-back {
+      background-color: #e07b39;
+      box-shadow: 0 3px 8px rgba(224, 123, 57, 0.35);
+      font-size: 28px;
+    }
+
+    /* 表面（めくれた状態） */
+    .memory-card-front {
+      background-color: #fffaf4;
+      border: 2px solid #e0c4a0;
+      transform: rotateY(180deg);
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .memory-card-front .card-emoji {
+      font-size: 36px;
+      line-height: 1;
+    }
+
+    .memory-card-front .card-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+
+    .memory-card-front .card-label {
+      font-size: 12px;
+      color: #8c6b4a;
+    }
+
+    /* 画像使用時はラベル非表示 */
+    .memory-card-front.has-image .card-label {
+      display: none;
+    }
+
+    /* マッチ済み */
+    .memory-card.matched .memory-card-front {
+      background-color: #d4edda;
+      border-color: #4cae4c;
+    }
+
+    .memory-card.matched .card-emoji,
+    .memory-card.matched .card-label {
+      opacity: 0.6;
+    }
+
+    /* =============================================
+       結果画面
+    ============================================= */
+    #screen-result {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: 24px;
+    }
+
+    .result-icon {
+      font-size: 64px;
+    }
+
+    .result-title {
+      font-size: 28px;
+      font-weight: bold;
+      color: #c96a28;
+      word-break: break-all;
+    }
+
+    .result-score-box {
+      background-color: #fdf0e0;
+      border-radius: 20px;
+      padding: 28px 24px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .result-score-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 18px;
+      color: #8c6b4a;
+    }
+
+    .result-score-row strong {
+      font-size: 24px;
+      color: #e07b39;
+    }
+
+    .result-message {
+      font-size: 20px;
+      color: #4a3728;
+      line-height: 1.7;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ========== スタート画面 ========== -->
+    <div id="screen-start" class="screen card active">
+      <div class="game-title-wrapper">
+        <div class="game-title-icon">🃏</div>
+        <h1 class="game-title">絵合わせ</h1>
+        <p class="game-subtitle">同じ絵を2枚見つけよう！</p>
+      </div>
+      <div class="start-info">
+        <p class="start-info-text">
+          <strong>16枚</strong>のカードを<br>
+          2枚ずつめくって<br>
+          同じ絵の組み合わせを<br>
+          すべて見つけてください。
+        </p>
+      </div>
+      <button class="btn btn-primary" onclick="startGame()">はじめる</button>
+    </div>
+
+    <!-- ========== ゲーム画面 ========== -->
+    <div id="screen-game" class="screen card">
+      <div class="game-header">
+        <p class="game-stat">めくった回数：<strong id="move-count">0</strong> 回</p>
+        <p class="game-stat">残り：<strong id="remain-count">8</strong> ペア</p>
+      </div>
+      <div class="grid" id="card-grid">
+        <!-- カードはJSで生成 -->
+      </div>
+    </div>
+
+    <!-- ========== 結果画面 ========== -->
+    <div id="screen-result" class="screen card">
+      <div class="result-icon">🎉</div>
+      <p class="result-title">全部そろいました！</p>
+      <div class="result-score-box">
+        <div class="result-score-row">
+          <span>めくった回数</span>
+          <strong id="result-moves">0</strong> 回
+        </div>
+      </div>
+      <p class="result-message" id="result-message">よくできました！</p>
+      <button class="btn btn-primary" onclick="startGame()">もう一度あそぶ</button>
+      <button class="btn btn-secondary" onclick="goTop()">トップへもどる</button>
+    </div>
+
+  </div><!-- /#app -->
+
+  <!-- カード設定ファイル -->
+  <script src="images/cards.js"></script>
+
+  <script>
+    // =============================================
+    // グローバル変数
+    // =============================================
+    let flippedCards = [];   // 現在めくられているカード（最大2枚）
+    let matchedCount = 0;    // マッチ済みペア数
+    let moveCount = 0;       // めくった回数（2枚めくるたびに+1）
+    let isLocked = false;    // カードをめくれない状態（判定中）
+
+    // =============================================
+    // 画面切り替え
+    // =============================================
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(function(el) {
+        el.classList.remove('active');
+      });
+      document.getElementById(screenId).classList.add('active');
+    }
+
+    // =============================================
+    // ゲーム開始
+    // =============================================
+    function startGame() {
+      flippedCards = [];
+      matchedCount = 0;
+      moveCount = 0;
+      isLocked = false;
+
+      // カードを2枚ずつ複製してシャッフル
+      const pairs = CARDS.flatMap(function(c) { return [c, c]; });
+      const shuffled = shuffleArray(pairs.slice());
+
+      // グリッドを生成
+      const grid = document.getElementById('card-grid');
+      grid.innerHTML = '';
+      shuffled.forEach(function(cardData, index) {
+        grid.appendChild(createCardElement(cardData, index));
+      });
+
+      updateStats();
+      showScreen('screen-game');
+    }
+
+    // =============================================
+    // カード要素の生成
+    // =============================================
+    function createCardElement(cardData, index) {
+      const card = document.createElement('div');
+      card.className = 'memory-card';
+      card.dataset.id = cardData.id;
+      card.dataset.index = index;
+
+      // 表面の中身（画像 or 絵文字）
+      let frontContent;
+      if (cardData.image) {
+        frontContent =
+          '<div class="memory-card-front has-image">' +
+          '<img class="card-image" src="' + cardData.image + '" alt="' + escapeHtml(cardData.label) + '">' +
+          '</div>';
+      } else {
+        frontContent =
+          '<div class="memory-card-front">' +
+          '<span class="card-emoji">' + cardData.emoji + '</span>' +
+          '<span class="card-label">' + escapeHtml(cardData.label) + '</span>' +
+          '</div>';
+      }
+
+      card.innerHTML =
+        '<div class="memory-card-inner">' +
+        frontContent +
+        '<div class="memory-card-back">🌸</div>' +
+        '</div>';
+
+      card.addEventListener('click', function() { onCardClick(card); });
+      return card;
+    }
+
+    // =============================================
+    // カードをクリックしたとき
+    // =============================================
+    function onCardClick(card) {
+      // ロック中・すでにめくれている・マッチ済みは無視
+      if (isLocked) return;
+      if (card.classList.contains('flipped')) return;
+      if (card.classList.contains('matched')) return;
+
+      card.classList.add('flipped');
+      flippedCards.push(card);
+
+      if (flippedCards.length === 2) {
+        isLocked = true;
+        moveCount++;
+        updateStats();
+        checkMatch();
+      }
+    }
+
+    // =============================================
+    // マッチ判定
+    // =============================================
+    function checkMatch() {
+      const [a, b] = flippedCards;
+      const isMatch = (a.dataset.id === b.dataset.id);
+
+      if (isMatch) {
+        a.classList.add('matched');
+        b.classList.add('matched');
+        matchedCount++;
+        flippedCards = [];
+        isLocked = false;
+        updateStats();
+
+        if (matchedCount === CARDS.length) {
+          setTimeout(showResult, 500);
+        }
+      } else {
+        // 不一致：少し待ってから裏に戻す
+        setTimeout(function() {
+          a.classList.remove('flipped');
+          b.classList.remove('flipped');
+          flippedCards = [];
+          isLocked = false;
+        }, 900);
+      }
+    }
+
+    // =============================================
+    // 統計表示の更新
+    // =============================================
+    function updateStats() {
+      document.getElementById('move-count').textContent = moveCount;
+      document.getElementById('remain-count').textContent = CARDS.length - matchedCount;
+    }
+
+    // =============================================
+    // 結果画面
+    // =============================================
+    function showResult() {
+      document.getElementById('result-moves').textContent = moveCount;
+
+      let message;
+      if (moveCount <= CARDS.length) {
+        message = '驚異的な記憶力！すばらしいです！';
+      } else if (moveCount <= CARDS.length * 2) {
+        message = 'とても上手にできました！';
+      } else if (moveCount <= CARDS.length * 3) {
+        message = 'よくできました！またチャレンジしてみてください。';
+      } else {
+        message = 'おつかれさまでした！次回はもっと少ない回数を目指してみましょう。';
+      }
+
+      document.getElementById('result-message').textContent = message;
+      showScreen('screen-result');
+    }
+
+    // =============================================
+    // トップへ
+    // =============================================
+    function goTop() {
+      window.location.href = '../';
+    }
+
+    // =============================================
+    // ユーティリティ
+    // =============================================
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+      }
+      return arr;
+    }
+
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+  </script>
+</body>
+</html>
