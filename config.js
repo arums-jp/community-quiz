@@ -5,10 +5,10 @@
 
 const CONFIG = {
   // Google スプレッドシートのID（URLの /d/ と /edit の間の文字列）
-  SPREADSHEET_ID: 'ここにスプレッドシートIDを入力',
+  SPREADSHEET_ID: '1ywGFr5-XRkMKBUywETaW-LcaNcLoUYUwc1FOyGHDAp4',
 
   // Google Sheets API キー
-  API_KEY: 'ここにAPIキーを入力',
+  API_KEY: 'AIzaSyBmRZpSdiq5bhLFsfg2lUN0hZ_VnVZ70YM',
 
   // スプレッドシートのシート名
   SHEET_NAME: 'クイズ',
