@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>地域クイズ</title>
+  <style>
+    /* =============================================
+       リセット・基本設定
+    ============================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+      background-color: #fdf6ee;
+      color: #4a3728;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 16px;
+    }
+
+    /* =============================================
+       メインコンテナ（スマホ幅対応）
+    ============================================= */
+    #app {
+      width: 100%;
+      max-width: 480px;
+      min-height: calc(100vh - 32px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* =============================================
+       共通カード（各画面の枠）
+    ============================================= */
+    .card {
+      background-color: #fffaf4;
+      border-radius: 20px;
+      padding: 32px 24px;
+      box-shadow: 0 4px 16px rgba(180, 120, 60, 0.15);
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* =============================================
+       共通ボタン
+    ============================================= */
+    .btn {
+      display: block;
+      width: 100%;
+      min-height: 64px;
+      border: none;
+      border-radius: 16px;
+      font-size: 22px;
+      font-weight: bold;
+      cursor: pointer;
+      word-break: break-all;
+      padding: 12px 16px;
+      line-height: 1.4;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:active {
+      opacity: 0.85;
+      transform: scale(0.98);
+    }
+
+    /* メインアクション（オレンジ） */
+    .btn-primary {
+      background-color: #e07b39;
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(224, 123, 57, 0.35);
+    }
+
+    .btn-primary:hover {
+      background-color: #c96a28;
+    }
+
+    /* サブアクション（ベージュ） */
+    .btn-secondary {
+      background-color: #f2d9bc;
+      color: #4a3728;
+      box-shadow: 0 2px 6px rgba(180, 120, 60, 0.15);
+    }
+
+    .btn-secondary:hover {
+      background-color: #e8c9a4;
+    }
+
+    /* 選択肢ボタン */
+    .btn-choice {
+      background-color: #fff;
+      color: #4a3728;
+      border: 2px solid #e0c4a0;
+      font-size: 20px;
+      font-weight: normal;
+      text-align: left;
+      padding: 16px 20px;
+      min-height: 64px;
+      box-shadow: 0 2px 6px rgba(180, 120, 60, 0.1);
+    }
+
+    .btn-choice:hover {
+      background-color: #fdf0e0;
+      border-color: #e07b39;
+    }
+
+    /* 正解の選択肢 */
+    .btn-choice.correct {
+      background-color: #d4edda;
+      border-color: #4cae4c;
+      color: #2d6a2d;
+      font-weight: bold;
+    }
+
+    /* 不正解の選択肢 */
+    .btn-choice.wrong {
+      background-color: #f8d7da;
+      border-color: #d9534f;
+      color: #842029;
+      font-weight: bold;
+    }
+
+    /* 回答後に無効化 */
+    .btn-choice:disabled {
+      cursor: default;
+      opacity: 1;
+    }
+
+    /* =============================================
+       読み込み画面
+    ============================================= */
+    #screen-loading {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: 20px;
+    }
+
+    .loading-spinner {
+      width: 56px;
+      height: 56px;
+      border: 6px solid #f2d9bc;
+      border-top-color: #e07b39;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 20px;
+      color: #8c6b4a;
+    }
+
+    /* =============================================
+       エラー表示
+    ============================================= */
+    .error-icon {
+      font-size: 52px;
+      text-align: center;
+    }
+
+    .error-title {
+      font-size: 22px;
+      font-weight: bold;
+      color: #c0392b;
+      text-align: center;
+      word-break: break-all;
+    }
+
+    .error-message {
+      font-size: 18px;
+      color: #4a3728;
+      line-height: 1.7;
+      word-break: break-all;
+      background-color: #fdf0e0;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    /* =============================================
+       スタート画面
+    ============================================= */
+    #screen-start {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+
+    .game-title-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .game-title-icon {
+      font-size: 56px;
+    }
+
+    .game-title {
+      font-size: 32px;
+      font-weight: bold;
+      color: #c96a28;
+      word-break: break-all;
+    }
+
+    .game-subtitle {
+      font-size: 18px;
+      color: #8c6b4a;
+      word-break: break-all;
+    }
+
+    .start-info {
+      background-color: #fdf0e0;
+      border-radius: 14px;
+      padding: 20px;
+      width: 100%;
+    }
+
+    .start-info-text {
+      font-size: 20px;
+      color: #4a3728;
+      line-height: 1.8;
+      word-break: break-all;
+    }
+
+    .start-info-text strong {
+      font-size: 28px;
+      color: #e07b39;
+    }
+
+    /* =============================================
+       問題画面
+    ============================================= */
+    #screen-question {
+      gap: 20px;
+    }
+
+    /* 進捗バー */
+    .progress-area {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .progress-label {
+      font-size: 17px;
+      color: #8c6b4a;
+      text-align: right;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 10px;
+      background-color: #f2d9bc;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background-color: #e07b39;
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    /* 問題文 */
+    .question-text {
+      font-size: 24px;
+      line-height: 1.7;
+      color: #4a3728;
+      word-break: break-all;
+      background-color: #fdf0e0;
+      border-radius: 14px;
+      padding: 20px;
+      border-left: 6px solid #e07b39;
+    }
+
+    /* 選択肢リスト */
+    .choices-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* =============================================
+       フィードバック画面（正解/不正解）
+    ============================================= */
+    #screen-feedback {
+      gap: 20px;
+    }
+
+    .feedback-banner {
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .feedback-banner.correct {
+      background-color: #d4edda;
+      border: 3px solid #4cae4c;
+    }
+
+    .feedback-banner.wrong {
+      background-color: #f8d7da;
+      border: 3px solid #d9534f;
+    }
+
+    .feedback-result {
+      font-size: 30px;
+      font-weight: bold;
+      word-break: break-all;
+    }
+
+    .feedback-banner.correct .feedback-result {
+      color: #2d6a2d;
+    }
+
+    .feedback-banner.wrong .feedback-result {
+      color: #842029;
+    }
+
+    .feedback-correct-answer {
+      font-size: 18px;
+      color: #4a3728;
+      margin-top: 8px;
+      word-break: break-all;
+    }
+
+    .feedback-correct-answer strong {
+      color: #c96a28;
+    }
+
+    /* 解説 */
+    .explanation-box {
+      background-color: #fdf0e0;
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .explanation-label {
+      font-size: 16px;
+      font-weight: bold;
+      color: #e07b39;
+    }
+
+    .explanation-text {
+      font-size: 20px;
+      line-height: 1.7;
+      color: #4a3728;
+      word-break: break-all;
+    }
+
+    /* =============================================
+       結果画面
+    ============================================= */
+    #screen-result {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: 24px;
+    }
+
+    .result-icon {
+      font-size: 64px;
+    }
+
+    .result-title {
+      font-size: 28px;
+      font-weight: bold;
+      color: #c96a28;
+      word-break: break-all;
+    }
+
+    .result-score-box {
+      background-color: #fdf0e0;
+      border-radius: 20px;
+      padding: 28px 24px;
+      width: 100%;
+    }
+
+    .result-score-label {
+      font-size: 18px;
+      color: #8c6b4a;
+    }
+
+    .result-score {
+      font-size: 56px;
+      font-weight: bold;
+      color: #e07b39;
+      line-height: 1.2;
+    }
+
+    .result-score span.total {
+      font-size: 28px;
+      color: #8c6b4a;
+    }
+
+    .result-message {
+      font-size: 20px;
+      color: #4a3728;
+      line-height: 1.7;
+      word-break: break-all;
+    }
+
+    /* =============================================
+       画面の表示・非表示制御
+    ============================================= */
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ========== 読み込み画面 ========== -->
+    <div id="screen-loading" class="screen card active">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">問題を読み込んでいます…</p>
+    </div>
+
+    <!-- ========== スタート画面 ========== -->
+    <div id="screen-start" class="screen card">
+      <div class="game-title-wrapper">
+        <div class="game-title-icon">🏘️</div>
+        <h1 class="game-title">地域クイズ</h1>
+        <p class="game-subtitle">みんなで楽しもう！</p>
+      </div>
+      <div class="start-info">
+        <p class="start-info-text" id="start-info-text">
+          全 <strong id="question-count">?</strong> 問 出題します。<br>
+          4つの選択肢から<br>正しいものを選んでください。
+        </p>
+      </div>
+      <button class="btn btn-primary" onclick="startGame()">はじめる</button>
+    </div>
+
+    <!-- ========== 問題画面 ========== -->
+    <div id="screen-question" class="screen card">
+      <div class="progress-area">
+        <p class="progress-label">
+          <span id="current-num">1</span> 問目 ／ <span id="total-num">10</span> 問
+        </p>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-bar" style="width: 0%"></div>
+        </div>
+      </div>
+      <p class="question-text" id="question-text">問題文がここに入ります</p>
+      <div class="choices-list" id="choices-list">
+        <!-- 選択肢ボタンはJSで生成 -->
+      </div>
+    </div>
+
+    <!-- ========== フィードバック画面 ========== -->
+    <div id="screen-feedback" class="screen card">
+      <div class="feedback-banner" id="feedback-banner">
+        <p class="feedback-result" id="feedback-result">〇 正解！</p>
+        <p class="feedback-correct-answer" id="feedback-correct-answer"></p>
+      </div>
+      <div class="explanation-box" id="explanation-box">
+        <p class="explanation-label">解説</p>
+        <p class="explanation-text" id="explanation-text">解説がここに入ります</p>
+      </div>
+      <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()">次へ →</button>
+    </div>
+
+    <!-- ========== 結果画面 ========== -->
+    <div id="screen-result" class="screen card">
+      <div class="result-icon" id="result-icon">🎉</div>
+      <p class="result-title" id="result-title">おつかれさまでした！</p>
+      <div class="result-score-box">
+        <p class="result-score-label">あなたのスコア</p>
+        <p class="result-score">
+          <span id="correct-count">0</span>
+          <span class="total"> ／ <span id="result-total">10</span> 問正解</span>
+        </p>
+      </div>
+      <p class="result-message" id="result-message">よくできました！</p>
+      <button class="btn btn-primary" onclick="restartGame()">もう一度あそぶ</button>
+    </div>
+
+  </div><!-- /#app -->
+
+  <!-- 設定ファイルを先に読み込む -->
+  <script src="config.js"></script>
+
+  <script>
+    // =============================================
+    // グローバル変数
+    // =============================================
+
+    /** スプレッドシートから取得したすべての問題 */
+    let allQuestions = [];
+
+    /** 今回のゲームで出題する問題（ランダム選択・順序シャッフル済み） */
+    let gameQuestions = [];
+
+    /** 現在の問題インデックス */
+    let currentIndex = 0;
+
+    /** 正解数 */
+    let correctCount = 0;
+
+    // =============================================
+    // 画面切り替え
+    // =============================================
+
+    /**
+     * 指定したIDの画面を表示し、他を非表示にする
+     * @param {string} screenId - 表示する画面要素のID
+     */
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(function(el) {
+        el.classList.remove('active');
+      });
+      document.getElementById(screenId).classList.add('active');
+    }
+
+    // =============================================
+    // データ取得
+    // =============================================
+
+    /**
+     * Google Sheets API v4 から問題データを取得する
+     */
+    async function fetchQuestions() {
+      // CONFIG の値が未設定かチェック
+      if (
+        !CONFIG.SPREADSHEET_ID ||
+        CONFIG.SPREADSHEET_ID === 'ここにスプレッドシートIDを入力'
+      ) {
+        showError(
+          'スプレッドシートIDが設定されていません。',
+          'config.js の SPREADSHEET_ID を正しく入力してください。'
+        );
+        return;
+      }
+      if (
+        !CONFIG.API_KEY ||
+        CONFIG.API_KEY === 'ここにAPIキーを入力'
+      ) {
+        showError(
+          'APIキーが設定されていません。',
+          'config.js の API_KEY を正しく入力してください。'
+        );
+        return;
+      }
+
+      // データ取得範囲：A列〜H列（1行目はヘッダーなし、2行目以降にデータと想定）
+      // ※ヘッダー行がある場合は A2:H1000 に変更してください
+      const range = encodeURIComponent(CONFIG.SHEET_NAME + '!A1:H1000');
+      const url =
+        'https://sheets.googleapis.com/v4/spreadsheets/' +
+        CONFIG.SPREADSHEET_ID +
+        '/values/' +
+        range +
+        '?key=' +
+        CONFIG.API_KEY;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          const errJson = await response.json().catch(function() { return {}; });
+          const msg = (errJson.error && errJson.error.message) ? errJson.error.message : response.statusText;
+          showError(
+            'データの読み込みに失敗しました（エラー ' + response.status + '）',
+            msg
+          );
+          return;
+        }
+
+        const data = await response.json();
+        const rows = data.values;
+
+        // データが空の場合
+        if (!rows || rows.length === 0) {
+          showError(
+            '問題データが見つかりません。',
+            'スプレッドシートに問題を入力しているか確認してください。'
+          );
+          return;
+        }
+
+        // 行データを問題オブジェクトに変換
+        const questions = [];
+        rows.forEach(function(row) {
+          // A列（問題番号）が空またはB列（問題文）が空の行はスキップ
+          if (!row[1]) return;
+
+          // 選択肢が4つ揃っていない行はスキップ
+          if (!row[2] || !row[3] || !row[4] || !row[5]) return;
+
+          questions.push({
+            number: row[0] || '',
+            question: row[1],
+            correct: row[2],       // C列が正解
+            choices: [row[2], row[3], row[4], row[5]], // C〜F列
+            explanation: row[6] || '解説はありません。',
+            category: row[7] || '',
+          });
+        });
+
+        if (questions.length === 0) {
+          showError(
+            '有効な問題データが見つかりません。',
+            'スプレッドシートの列（問題文・選択肢4つ）が正しく入力されているか確認してください。'
+          );
+          return;
+        }
+
+        allQuestions = questions;
+
+        // スタート画面へ
+        const displayCount = Math.min(allQuestions.length, CONFIG.MAX_QUESTIONS);
+        document.getElementById('question-count').textContent = displayCount;
+        showScreen('screen-start');
+
+      } catch (e) {
+        showError(
+          'ネットワークエラーが発生しました。',
+          'インターネット接続を確認してから、ページを再読み込みしてください。\n(' + e.message + ')'
+        );
+      }
+    }
+
+    /**
+     * エラー画面を表示する
+     * @param {string} title - エラータイトル
+     * @param {string} detail - エラー詳細メッセージ
+     */
+    function showError(title, detail) {
+      const loadingCard = document.getElementById('screen-loading');
+      loadingCard.innerHTML =
+        '<div class="error-icon">⚠️</div>' +
+        '<p class="error-title">' + escapeHtml(title) + '</p>' +
+        '<div class="error-message">' + escapeHtml(detail) + '</div>' +
+        '<button class="btn btn-secondary" onclick="location.reload()">再読み込み</button>';
+      showScreen('screen-loading');
+    }
+
+    // =============================================
+    // ゲームロジック
+    // =============================================
+
+    /**
+     * ゲームを開始する
+     */
+    function startGame() {
+      correctCount = 0;
+      currentIndex = 0;
+
+      // 問題をランダムに選んでシャッフル
+      const shuffled = shuffleArray(allQuestions.slice());
+      gameQuestions = shuffled.slice(0, CONFIG.MAX_QUESTIONS);
+
+      showQuestion();
+    }
+
+    /**
+     * 現在の問題を表示する
+     */
+    function showQuestion() {
+      const q = gameQuestions[currentIndex];
+      const total = gameQuestions.length;
+
+      // 進捗更新
+      document.getElementById('current-num').textContent = currentIndex + 1;
+      document.getElementById('total-num').textContent = total;
+      const progressPct = (currentIndex / total) * 100;
+      document.getElementById('progress-bar').style.width = progressPct + '%';
+
+      // 問題文
+      document.getElementById('question-text').textContent = q.question;
+
+      // 選択肢をシャッフルして表示
+      const shuffledChoices = shuffleArray(q.choices.slice());
+      const choicesList = document.getElementById('choices-list');
+      choicesList.innerHTML = '';
+
+      shuffledChoices.forEach(function(choice) {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-choice';
+        btn.textContent = choice;
+        btn.onclick = function() { handleAnswer(choice, q); };
+        choicesList.appendChild(btn);
+      });
+
+      showScreen('screen-question');
+    }
+
+    /**
+     * 選択肢を押したときの処理
+     * @param {string} selected - 選択された選択肢テキスト
+     * @param {Object} q - 問題オブジェクト
+     */
+    function handleAnswer(selected, q) {
+      const isCorrect = (selected === q.correct);
+
+      // すべての選択肢ボタンを無効化・色付け
+      const buttons = document.querySelectorAll('#choices-list .btn-choice');
+      buttons.forEach(function(btn) {
+        btn.disabled = true;
+        if (btn.textContent === q.correct) {
+          btn.classList.add('correct');
+        } else if (btn.textContent === selected && !isCorrect) {
+          btn.classList.add('wrong');
+        }
+      });
+
+      // 少し間を置いてフィードバック画面へ
+      setTimeout(function() {
+        showFeedback(isCorrect, q);
+      }, 600);
+    }
+
+    /**
+     * フィードバック画面を表示する
+     * @param {boolean} isCorrect - 正解かどうか
+     * @param {Object} q - 問題オブジェクト
+     */
+    function showFeedback(isCorrect, q) {
+      if (isCorrect) {
+        correctCount++;
+      }
+
+      const banner = document.getElementById('feedback-banner');
+      const resultText = document.getElementById('feedback-result');
+      const correctAnswerText = document.getElementById('feedback-correct-answer');
+      const explanationText = document.getElementById('explanation-text');
+      const nextBtn = document.getElementById('next-btn');
+
+      if (isCorrect) {
+        banner.className = 'feedback-banner correct';
+        resultText.textContent = '⭕ 正解！';
+        correctAnswerText.textContent = '';
+      } else {
+        banner.className = 'feedback-banner wrong';
+        resultText.textContent = '❌ 残念、不正解…';
+        correctAnswerText.innerHTML = '正解は「<strong>' + escapeHtml(q.correct) + '</strong>」でした';
+      }
+
+      explanationText.textContent = q.explanation;
+
+      // 最後の問題なら「結果を見る」に変える
+      const isLast = (currentIndex >= gameQuestions.length - 1);
+      nextBtn.textContent = isLast ? '結果を見る ✓' : '次へ →';
+
+      showScreen('screen-feedback');
+    }
+
+    /**
+     * 「次へ」ボタンの処理
+     */
+    function nextQuestion() {
+      currentIndex++;
+      if (currentIndex >= gameQuestions.length) {
+        showResult();
+      } else {
+        showQuestion();
+      }
+    }
+
+    /**
+     * 結果画面を表示する
+     */
+    function showResult() {
+      const total = gameQuestions.length;
+      const ratio = correctCount / total;
+
+      document.getElementById('correct-count').textContent = correctCount;
+      document.getElementById('result-total').textContent = total;
+
+      // スコアに応じてメッセージ変更
+      let icon, title, message;
+      if (ratio >= 0.9) {
+        icon = '🏆';
+        title = 'すばらしい！満点に近い成績です！';
+        message = 'ほぼ全問正解！地域のことをよく知っていますね。';
+      } else if (ratio >= 0.7) {
+        icon = '🎉';
+        title = 'よくできました！';
+        message = '多くの問題に正解できました。すごいですね！';
+      } else if (ratio >= 0.5) {
+        icon = '😊';
+        title = 'おつかれさまでした！';
+        message = 'もう一度チャレンジして、さらに高得点を目指してみましょう！';
+      } else {
+        icon = '😌';
+        title = 'おつかれさまでした！';
+        message = '次回は今回より多く正解できるといいですね。またチャレンジしてみてください！';
+      }
+
+      document.getElementById('result-icon').textContent = icon;
+      document.getElementById('result-title').textContent = title;
+      document.getElementById('result-message').textContent = message;
+
+      showScreen('screen-result');
+    }
+
+    /**
+     * ゲームをリスタートする（スタート画面に戻る）
+     */
+    function restartGame() {
+      showScreen('screen-start');
+    }
+
+    // =============================================
+    // ユーティリティ
+    // =============================================
+
+    /**
+     * 配列をランダムにシャッフルして返す（Fisher-Yates法）
+     * @param {Array} arr - シャッフルする配列
+     * @returns {Array} シャッフルされた新しい配列
+     */
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+      }
+      return arr;
+    }
+
+    /**
+     * HTMLエスケープ（XSS対策）
+     * @param {string} str - エスケープする文字列
+     * @returns {string} エスケープ済み文字列
+     */
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // =============================================
+    // 起動
+    // =============================================
+    fetchQuestions();
+
+  </script>
+</body>
+</html>
