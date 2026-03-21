@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p i:/dev/community-quiz/quiz)",
+      "Bash(cp i:/dev/community-quiz/index.html i:/dev/community-quiz/quiz/index.html)",
+      "Bash(git config:*)",
+      "Bash(gh repo:*)",
+      "Bash(gh api:*)"
+    ]
+  }
+}
