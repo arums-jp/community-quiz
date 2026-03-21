@@ -506,14 +506,11 @@
 
     <!-- ========== 結果画面 ========== -->
     <div id="screen-result" class="screen card">
-      <div class="result-icon">🎉</div>
-      <p class="result-title">全問正解！</p>
+      <div class="result-icon" id="result-icon">🎉</div>
+      <p class="result-title" id="result-title">全問正解！</p>
       <div class="result-box">
-        <p class="result-box-text">
-          おめでとうございます！<br>
-          すべての答えが<br>
-          正しく入りました！
-        </p>
+        <p class="result-box-text" id="result-score"></p>
+        <p class="result-box-text" id="result-message"></p>
       </div>
       <button class="btn btn-primary"   onclick="startGame()">もう一度あそぶ</button>
       <button class="btn btn-secondary" onclick="goTop()">トップへもどる</button>
@@ -542,13 +539,20 @@
       { label: 'サ行', chars: ['サ','シ','ス','セ','ソ'] },
       { label: 'タ行', chars: ['タ','チ','ツ','テ','ト'] },
       { label: 'ナ行', chars: ['ナ','ニ','ヌ','ネ','ノ'] },
-      { label: 'ハ行', chars: ['ハ','ヒ','フ','ヘ','ホ'] },
+      { label: 'ハ行', chars: ['ハ','ヒ','フ','ヘ','ホ'], dakuten: true },
       { label: 'マ行', chars: ['マ','ミ','ム','メ','モ'] },
       { label: 'ヤ行', chars: ['ヤ','ユ','ヨ'] },
       { label: 'ラ行', chars: ['ラ','リ','ル','レ','ロ'] },
       { label: 'ワ行', chars: ['ワ','ヲ'] },
       { label: 'ン',   chars: ['ン'], single: true },
       { label: '消す', chars: [], erase: true },
+    ];
+
+    // ハ行選択後に表示する濁点・半濁点の選択肢
+    var HA_VARIANTS = [
+      { label: 'ハ行', chars: ['ハ','ヒ','フ','ヘ','ホ'] },
+      { label: 'バ行', chars: ['バ','ビ','ブ','ベ','ボ'] },
+      { label: 'パ行', chars: ['パ','ピ','プ','ペ','ポ'] },
     ];
 
     // =============================================
@@ -679,6 +683,11 @@
             '横と縦の単語に共通する文字がある行を入力してください。');
           return;
         }
+
+        // シャッフルして最大問題数に絞る
+        puzzles = shuffleArray(puzzles);
+        var max = (CONFIG.MAX_QUESTIONS && CONFIG.MAX_QUESTIONS > 0) ? CONFIG.MAX_QUESTIONS : 10;
+        if (puzzles.length > max) puzzles = puzzles.slice(0, max);
 
         showScreen('screen-start');
 
@@ -872,9 +881,31 @@
     }
 
     function onRowBtnClick(rowDef) {
-      if (rowDef.erase)  { inputChar('');             return; }
-      if (rowDef.single) { inputChar(rowDef.chars[0]); return; }
+      if (rowDef.erase)   { inputChar('');              return; }
+      if (rowDef.single)  { inputChar(rowDef.chars[0]); return; }
+      if (rowDef.dakuten) { showDakutenSelect();         return; }
       showCharSelect(rowDef);
+    }
+
+    // ハ行 → バ行・パ行の選択
+    function showDakutenSelect() {
+      document.getElementById('step-row').style.display  = 'none';
+      document.getElementById('step-char').style.display = 'none';
+      document.getElementById('dialog-back').style.display = '';
+
+      var stepRow = document.getElementById('step-row');
+      stepRow.innerHTML = '';
+      stepRow.style.display = '';
+
+      HA_VARIANTS.forEach(function(varDef) {
+        var btn = document.createElement('button');
+        btn.className = 'row-btn';
+        btn.textContent = varDef.label;
+        btn.addEventListener('click', (function(vd) {
+          return function() { showCharSelect(vd); };
+        })(varDef));
+        stepRow.appendChild(btn);
+      });
     }
 
     function showCharSelect(rowDef) {
@@ -920,7 +951,7 @@
     // 答え合わせ
     // =============================================
     function checkAnswers() {
-      var allCorrect = true;
+      var correctCount = 0;
 
       puzzles.forEach(function(p, idx) {
         var answerEl = document.getElementById('answer-' + idx);
@@ -930,15 +961,53 @@
 
         if (p.userInput === p.answer) {
           answerEl.classList.add('correct');
+          correctCount++;
         } else {
           answerEl.classList.add('wrong');
-          allCorrect = false;
         }
       });
 
-      if (allCorrect) {
-        setTimeout(function() { showScreen('screen-result'); }, 800);
+      if (correctCount === puzzles.length) {
+        setTimeout(function() { showResult(correctCount); }, 800);
       }
+    }
+
+    // =============================================
+    // 結果画面表示
+    // =============================================
+    function showResult(correctCount) {
+      var total = puzzles.length;
+      var ratio = total > 0 ? correctCount / total : 0;
+
+      var icon, title, message;
+      if (ratio === 1.0) {
+        icon    = '🏆';
+        title   = '全問正解！パーフェクトです！';
+        message = 'おめでとうございます！すべての答えが正しく入りました！';
+      } else if (ratio >= 0.9) {
+        icon    = '🎖️';
+        title   = 'すばらしい！あと一歩で満点！';
+        message = 'ほぼ全問正解！もう一度チャレンジしてみてください。';
+      } else if (ratio >= 0.7) {
+        icon    = '🎉';
+        title   = 'よくできました！';
+        message = '多くの問題に正解できました。すごいですね！';
+      } else if (ratio >= 0.5) {
+        icon    = '😊';
+        title   = 'もう少し！';
+        message = 'もう一度チャレンジして、さらに高得点を目指してみましょう！';
+      } else {
+        icon    = '😌';
+        title   = 'またチャレンジしてみてください！';
+        message = '次回は今回より多く正解できるといいですね。';
+      }
+
+      document.getElementById('result-icon').textContent    = icon;
+      document.getElementById('result-title').textContent   = title;
+      document.getElementById('result-score').textContent   = correctCount + ' ／ ' + total + ' 問正解';
+      document.getElementById('result-message').textContent = message;
+
+      showScreen('screen-result');
     }
 
     // =============================================
@@ -954,6 +1023,18 @@
         }
       });
       updateProgress();
+    }
+
+    // =============================================
+    // シャッフル
+    // =============================================
+    function shuffleArray(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+      }
+      return a;
     }
 
     // =============================================
