@@ -535,24 +535,34 @@
     // =============================================
     var KANA_ROWS = [
       { label: 'ア行', chars: ['ア','イ','ウ','エ','オ'] },
-      { label: 'カ行', chars: ['カ','キ','ク','ケ','コ'] },
-      { label: 'サ行', chars: ['サ','シ','ス','セ','ソ'] },
-      { label: 'タ行', chars: ['タ','チ','ツ','テ','ト'] },
+      { label: 'カ行', chars: ['カ','キ','ク','ケ','コ'],
+        variants: [
+          { label: 'カ行', chars: ['カ','キ','ク','ケ','コ'] },
+          { label: 'ガ行', chars: ['ガ','ギ','グ','ゲ','ゴ'] },
+        ]},
+      { label: 'サ行', chars: ['サ','シ','ス','セ','ソ'],
+        variants: [
+          { label: 'サ行', chars: ['サ','シ','ス','セ','ソ'] },
+          { label: 'ザ行', chars: ['ザ','ジ','ズ','ゼ','ゾ'] },
+        ]},
+      { label: 'タ行', chars: ['タ','チ','ツ','テ','ト'],
+        variants: [
+          { label: 'タ行', chars: ['タ','チ','ツ','テ','ト'] },
+          { label: 'ダ行', chars: ['ダ','ヂ','ヅ','デ','ド'] },
+        ]},
       { label: 'ナ行', chars: ['ナ','ニ','ヌ','ネ','ノ'] },
-      { label: 'ハ行', chars: ['ハ','ヒ','フ','ヘ','ホ'], dakuten: true },
+      { label: 'ハ行', chars: ['ハ','ヒ','フ','ヘ','ホ'],
+        variants: [
+          { label: 'ハ行', chars: ['ハ','ヒ','フ','ヘ','ホ'] },
+          { label: 'バ行', chars: ['バ','ビ','ブ','ベ','ボ'] },
+          { label: 'パ行', chars: ['パ','ピ','プ','ペ','ポ'] },
+        ]},
       { label: 'マ行', chars: ['マ','ミ','ム','メ','モ'] },
       { label: 'ヤ行', chars: ['ヤ','ユ','ヨ'] },
       { label: 'ラ行', chars: ['ラ','リ','ル','レ','ロ'] },
       { label: 'ワ行', chars: ['ワ','ヲ'] },
       { label: 'ン',   chars: ['ン'], single: true },
       { label: '消す', chars: [], erase: true },
-    ];
-
-    // ハ行選択後に表示する濁点・半濁点の選択肢
-    var HA_VARIANTS = [
-      { label: 'ハ行', chars: ['ハ','ヒ','フ','ヘ','ホ'] },
-      { label: 'バ行', chars: ['バ','ビ','ブ','ベ','ボ'] },
-      { label: 'パ行', chars: ['パ','ピ','プ','ペ','ポ'] },
     ];
 
     // =============================================
@@ -881,23 +891,23 @@
     }
 
     function onRowBtnClick(rowDef) {
-      if (rowDef.erase)   { inputChar('');              return; }
-      if (rowDef.single)  { inputChar(rowDef.chars[0]); return; }
-      if (rowDef.dakuten) { showDakutenSelect();         return; }
+      if (rowDef.erase)    { inputChar('');              return; }
+      if (rowDef.single)   { inputChar(rowDef.chars[0]); return; }
+      if (rowDef.variants) { showVariantSelect(rowDef.variants); return; }
       showCharSelect(rowDef);
     }
 
-    // ハ行 → バ行・パ行の選択
-    function showDakutenSelect() {
-      document.getElementById('step-row').style.display  = 'none';
-      document.getElementById('step-char').style.display = 'none';
+    // 濁点・半濁点バリアント選択
+    function showVariantSelect(variants) {
+      var stepRow  = document.getElementById('step-row');
+      var stepChar = document.getElementById('step-char');
+      stepChar.style.display = 'none';
       document.getElementById('dialog-back').style.display = '';
 
-      var stepRow = document.getElementById('step-row');
       stepRow.innerHTML = '';
       stepRow.style.display = '';
 
-      HA_VARIANTS.forEach(function(varDef) {
+      variants.forEach(function(varDef) {
         var btn = document.createElement('button');
         btn.className = 'row-btn';
         btn.textContent = varDef.label;
