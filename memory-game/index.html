@@ -66,6 +66,8 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     .btn:active {
       opacity: 0.85;
       transform: scale(0.98);
@@ -323,24 +325,12 @@
 <body>
   <div id="app">
 
-    <!-- ========== スタート画面 ========== -->
+    <!-- ========== スタート画面（内容はJS生成） ========== -->
     <div id="screen-start" class="screen card active">
-      <div class="game-title-wrapper">
-        <div class="game-title-icon">🃏</div>
-        <h1 class="game-title">絵合わせ</h1>
-        <p class="game-subtitle">同じ絵を2枚見つけよう！</p>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:20px;justify-content:center;flex:1;">
+        <div style="width:56px;height:56px;border:6px solid #f2d9bc;border-top-color:#e07b39;border-radius:50%;animation:spin 0.9s linear infinite;"></div>
+        <p style="font-size:20px;color:#8c6b4a;">データを読み込んでいます…</p>
       </div>
-      <div class="start-info">
-        <p class="start-info-text">
-          <strong>16枚</strong>のカードを<br>
-          2枚ずつめくって<br>
-          同じ絵の組み合わせを<br>
-          すべて見つけてください。<br>
-          今は仮の画像ですが、本番は<br>
-          季節の写真やイラストを使う予定です。
-        </p>
-      </div>
-      <button class="btn btn-primary" onclick="startGame()">はじめる</button>
     </div>
 
     <!-- ========== ゲーム画面 ========== -->
@@ -371,13 +361,13 @@
 
   </div><!-- /#app -->
 
-  <!-- カード設定ファイル -->
-  <script src="images/cards.js"></script>
+  <script src="../config.js"></script>
 
   <script>
     // =============================================
     // グローバル変数
     // =============================================
+    let CARDS = [];          // スプレッドシートから読み込んだカードデータ
     let flippedCards = [];   // 現在めくられているカード（最大2枚）
     let matchedCount = 0;    // マッチ済みペア数
     let moveCount = 0;       // めくった回数（2枚めくるたびに+1）
@@ -391,6 +381,109 @@
         el.classList.remove('active');
       });
       document.getElementById(screenId).classList.add('active');
+    }
+
+    // =============================================
+    // GoogleドライブURLをthumbnail URLに変換
+    // https://drive.google.com/file/d/FILE_ID/view
+    //   → https://drive.google.com/thumbnail?id=FILE_ID&sz=w400
+    // すでに変換済み・他のURLはそのまま返す
+    // =============================================
+    function toDriveThumbUrl(url) {
+      if (!url) return '';
+      var m = url.match(/\/file\/d\/([^\/\?]+)/);
+      if (m) {
+        return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w400';
+      }
+      // drive.google.com/open?id=XXX 形式
+      var m2 = url.match(/[?&]id=([^&]+)/);
+      if (m2 && url.includes('drive.google.com')) {
+        return 'https://drive.google.com/thumbnail?id=' + m2[1] + '&sz=w400';
+      }
+      return url;
+    }
+
+    // =============================================
+    // エラー表示
+    // =============================================
+    function showError(title, detail) {
+      var startEl = document.getElementById('screen-start');
+      startEl.innerHTML =
+        '<div style="font-size:52px;text-align:center;">⚠️</div>' +
+        '<p style="font-size:22px;font-weight:bold;color:#c0392b;text-align:center;">' + escapeHtml(title) + '</p>' +
+        '<div style="font-size:17px;color:#4a3728;line-height:1.7;background:#fdf0e0;border-radius:12px;padding:16px;white-space:pre-wrap;">' + escapeHtml(detail) + '</div>' +
+        '<button class="btn btn-secondary" onclick="location.reload()">再読み込み</button>';
+      showScreen('screen-start');
+    }
+
+    // =============================================
+    // データ取得
+    // =============================================
+    async function fetchCards() {
+      if (!CONFIG.SPREADSHEET_ID || CONFIG.SPREADSHEET_ID === 'ここにスプレッドシートIDを入力') {
+        showError('スプレッドシートIDが設定されていません。', 'config.js の SPREADSHEET_ID を入力してください。');
+        return;
+      }
+      if (!CONFIG.API_KEY || CONFIG.API_KEY === 'ここにAPIキーを入力') {
+        showError('APIキーが設定されていません。', 'config.js の API_KEY を入力してください。');
+        return;
+      }
+
+      var sheetName = CONFIG.MEMORY_SHEET || '絵合わせ';
+      var range = encodeURIComponent(sheetName + '!A2:C1000');
+      var url = 'https://sheets.googleapis.com/v4/spreadsheets/' +
+        CONFIG.SPREADSHEET_ID + '/values/' + range + '?key=' + CONFIG.API_KEY;
+
+      try {
+        var resp = await fetch(url);
+        if (!resp.ok) {
+          var e = await resp.json().catch(function() { return {}; });
+          showError('データの取得に失敗しました（' + resp.status + '）',
+            (e.error && e.error.message) ? e.error.message : resp.statusText);
+          return;
+        }
+
+        var json = await resp.json();
+        var rows = json.values || [];
+
+        CARDS = [];
+        rows.forEach(function(row, i) {
+          var label = String(row[0] || '').trim();
+          var imageRaw = String(row[1] || '').trim();
+          var emoji = String(row[2] || '').trim();
+          if (!label) return;
+          var imageUrl = imageRaw ? toDriveThumbUrl(imageRaw) : '';
+          CARDS.push({ id: i + 1, label: label, image: imageUrl, emoji: emoji || '🃏' });
+        });
+
+        if (CARDS.length < 2) {
+          showError('カードデータが不足しています。', 'スプレッドシートに2行以上のデータを入力してください。');
+          return;
+        }
+
+        // スタート画面を完成形に書き換え
+        document.getElementById('screen-start').innerHTML =
+          '<div class="game-title-wrapper">' +
+            '<div class="game-title-icon">🃏</div>' +
+            '<h1 class="game-title">絵合わせ</h1>' +
+            '<p class="game-subtitle">同じ絵を2枚見つけよう！</p>' +
+          '</div>' +
+          '<div class="start-info">' +
+            '<p class="start-info-text">' +
+              '<strong>' + (CARDS.length * 2) + '枚</strong>のカードを<br>' +
+              '2枚ずつめくって<br>' +
+              '同じ絵の組み合わせを<br>' +
+              'すべて見つけてください。' +
+            '</p>' +
+          '</div>' +
+          '<button class="btn btn-primary" onclick="startGame()">はじめる</button>';
+
+        showScreen('screen-start');
+
+      } catch (ex) {
+        showError('ネットワークエラーが発生しました。',
+          'インターネット接続を確認してください。\n(' + ex.message + ')');
+      }
     }
 
     // =============================================
@@ -558,6 +651,11 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
     }
+
+    // =============================================
+    // 起動
+    // =============================================
+    fetchCards();
   </script>
 </body>
 </html>
