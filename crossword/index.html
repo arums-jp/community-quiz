@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>クロスワードパズル</title>
+  <style>
+    /* =============================================
+       リセット・基本設定
+    ============================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+      background-color: #fdf6ee;
+      color: #4a3728;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 16px;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 480px;
+      min-height: calc(100vh - 32px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* =============================================
+       共通カード
+    ============================================= */
+    .card {
+      background-color: #fffaf4;
+      border-radius: 20px;
+      padding: 32px 24px;
+      box-shadow: 0 4px 16px rgba(180, 120, 60, 0.15);
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* =============================================
+       共通ボタン
+    ============================================= */
+    .btn {
+      display: block;
+      width: 100%;
+      min-height: 56px;
+      border: none;
+      border-radius: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 12px 16px;
+      line-height: 1.4;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+    }
+
+    .btn:active {
+      opacity: 0.85;
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background-color: #e07b39;
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(224, 123, 57, 0.35);
+    }
+
+    .btn-primary:hover {
+      background-color: #c96a28;
+    }
+
+    .btn-secondary {
+      background-color: #f2d9bc;
+      color: #4a3728;
+      box-shadow: 0 2px 6px rgba(180, 120, 60, 0.15);
+    }
+
+    .btn-secondary:hover {
+      background-color: #e8c9a4;
+    }
+
+    /* =============================================
+       画面の表示・非表示制御
+    ============================================= */
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    /* =============================================
+       読み込み画面
+    ============================================= */
+    #screen-loading {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: 20px;
+    }
+
+    .loading-spinner {
+      width: 56px;
+      height: 56px;
+      border: 6px solid #f2d9bc;
+      border-top-color: #e07b39;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 20px;
+      color: #8c6b4a;
+    }
+
+    /* =============================================
+       エラー表示
+    ============================================= */
+    .error-icon {
+      font-size: 52px;
+      text-align: center;
+    }
+
+    .error-title {
+      font-size: 22px;
+      font-weight: bold;
+      color: #c0392b;
+      text-align: center;
+    }
+
+    .error-message {
+      font-size: 17px;
+      color: #4a3728;
+      line-height: 1.7;
+      word-break: break-all;
+      background-color: #fdf0e0;
+      border-radius: 12px;
+      padding: 16px;
+      white-space: pre-wrap;
+    }
+
+    /* =============================================
+       スタート画面
+    ============================================= */
+    #screen-start {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+
+    .game-title-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .game-title-icon {
+      font-size: 56px;
+    }
+
+    .game-title {
+      font-size: 32px;
+      font-weight: bold;
+      color: #c96a28;
+    }
+
+    .game-subtitle {
+      font-size: 18px;
+      color: #8c6b4a;
+    }
+
+    .start-info {
+      background-color: #fdf0e0;
+      border-radius: 14px;
+      padding: 20px;
+      width: 100%;
+    }
+
+    .start-info-text {
+      font-size: 19px;
+      color: #4a3728;
+      line-height: 1.9;
+    }
+
+    /* =============================================
+       ゲーム画面
+    ============================================= */
+    #screen-game {
+      gap: 16px;
+      padding: 20px 24px;
+    }
+
+    /* グリッドラッパー */
+    .grid-wrapper {
+      display: flex;
+      justify-content: center;
+    }
+
+    /* グリッド本体 */
+    #crossword-grid {
+      display: grid;
+      border: 2px solid #c4a882;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    /* 個別セル */
+    .cell {
+      position: relative;
+      border: 1px solid #e0c4a0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    .cell.black {
+      background-color: #4a3728;
+      border-color: #3a2718;
+      cursor: default;
+    }
+
+    .cell.answer {
+      background-color: #ffffff;
+    }
+
+    .cell.answer.highlighted {
+      background-color: #fdf0e0;
+    }
+
+    .cell.answer.focused {
+      outline: 2px solid #e07b39;
+      outline-offset: -2px;
+      background-color: #fff3e0;
+      z-index: 1;
+    }
+
+    .cell.answer.correct {
+      background-color: #d4edda;
+    }
+
+    .cell.answer.wrong {
+      background-color: #f8d7da;
+    }
+
+    /* セル内の番号（左上） */
+    .cell-number {
+      position: absolute;
+      top: 1px;
+      left: 2px;
+      font-size: 8px;
+      line-height: 1;
+      color: #8c6b4a;
+      pointer-events: none;
+    }
+
+    /* セル内の入力文字 */
+    .cell-char {
+      font-weight: bold;
+      color: #4a3728;
+      pointer-events: none;
+      line-height: 1;
+    }
+
+    /* ヒントエリア */
+    .hint-area {
+      background-color: #fdf0e0;
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 72px;
+    }
+
+    .hint-current-label {
+      font-size: 13px;
+      font-weight: bold;
+      color: #e07b39;
+    }
+
+    .hint-current-text {
+      font-size: 18px;
+      color: #4a3728;
+      line-height: 1.6;
+      word-break: break-all;
+    }
+
+    /* タブ切り替え */
+    .hint-tabs {
+      display: flex;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid #e0c4a0;
+    }
+
+    .hint-tab {
+      flex: 1;
+      padding: 8px 0;
+      font-size: 15px;
+      font-weight: bold;
+      border: none;
+      background-color: #fff;
+      color: #8c6b4a;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+      transition: background-color 0.15s, color 0.15s;
+    }
+
+    .hint-tab.active {
+      background-color: #e07b39;
+      color: #fff;
+    }
+
+    .hint-tab:first-child {
+      border-right: 1px solid #e0c4a0;
+    }
+
+    /* ヒント一覧 */
+    .hint-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+      margin-top: 8px;
+    }
+
+    .hint-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .hint-list::-webkit-scrollbar-track {
+      background: #f2d9bc;
+      border-radius: 2px;
+    }
+    .hint-list::-webkit-scrollbar-thumb {
+      background: #e07b39;
+      border-radius: 2px;
+    }
+
+    .hint-list-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 8px 12px;
+      background-color: #fff;
+      border-radius: 10px;
+      border: 1px solid #e0c4a0;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background-color 0.1s;
+    }
+
+    .hint-list-item:active {
+      background-color: #fdf0e0;
+    }
+
+    .hint-list-item.active-item {
+      border-color: #e07b39;
+      background-color: #fff3e0;
+    }
+
+    .hint-list-number {
+      font-size: 15px;
+      font-weight: bold;
+      color: #e07b39;
+      min-width: 28px;
+      flex-shrink: 0;
+    }
+
+    .hint-list-text {
+      font-size: 16px;
+      color: #4a3728;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+
+    /* ゲームボタン行 */
+    .game-btns {
+      display: flex;
+      gap: 10px;
+    }
+
+    .game-btns .btn {
+      font-size: 17px;
+      min-height: 48px;
+    }
+
+    /* =============================================
+       結果画面
+    ============================================= */
+    #screen-result {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: 24px;
+    }
+
+    .result-icon {
+      font-size: 64px;
+    }
+
+    .result-title {
+      font-size: 28px;
+      font-weight: bold;
+      color: #c96a28;
+    }
+
+    .result-box {
+      background-color: #fdf0e0;
+      border-radius: 20px;
+      padding: 24px;
+      width: 100%;
+    }
+
+    .result-box-text {
+      font-size: 20px;
+      color: #4a3728;
+      line-height: 1.8;
+    }
+
+    /* =============================================
+       文字入力ダイアログ（下から出るシート）
+    ============================================= */
+    #input-dialog {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background-color: rgba(74, 55, 40, 0.55);
+      z-index: 100;
+      justify-content: flex-end;
+      align-items: flex-end;
+    }
+
+    #input-dialog.open {
+      display: flex;
+    }
+
+    .dialog-panel {
+      background-color: #fffaf4;
+      border-radius: 24px 24px 0 0;
+      padding: 20px 16px 32px;
+      width: 100%;
+      box-shadow: 0 -4px 24px rgba(74, 55, 40, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .dialog-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #8c6b4a;
+      text-align: center;
+    }
+
+    /* 行選択ボタングリッド */
+    .row-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .row-btn {
+      padding: 12px 4px;
+      border: 2px solid #e0c4a0;
+      border-radius: 12px;
+      background-color: #fff;
+      font-size: 17px;
+      font-weight: bold;
+      color: #4a3728;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+      transition: background-color 0.1s;
+      text-align: center;
+    }
+
+    .row-btn:active {
+      background-color: #fdf0e0;
+      transform: scale(0.96);
+    }
+
+    .row-btn.erase-btn {
+      border-color: #d9534f;
+      color: #842029;
+    }
+
+    .row-btn.single-btn {
+      border-color: #c96a28;
+      color: #c96a28;
+    }
+
+    /* 文字選択ボタングリッド */
+    .char-buttons {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .char-btn {
+      padding: 14px 4px;
+      border: 2px solid #e07b39;
+      border-radius: 12px;
+      background-color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+      color: #4a3728;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+      transition: background-color 0.1s;
+      text-align: center;
+    }
+
+    .char-btn:active {
+      background-color: #fdf0e0;
+      transform: scale(0.96);
+    }
+
+    .dialog-back-btn {
+      padding: 10px;
+      border: 2px solid #e0c4a0;
+      border-radius: 10px;
+      background-color: #f2d9bc;
+      font-size: 15px;
+      color: #4a3728;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .dialog-back-btn:active {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ========== 読み込み画面 ========== -->
+    <div id="screen-loading" class="screen card active">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">データを読み込んでいます…</p>
+    </div>
+
+    <!-- ========== スタート画面 ========== -->
+    <div id="screen-start" class="screen card">
+      <div class="game-title-wrapper">
+        <div class="game-title-icon">📝</div>
+        <h1 class="game-title">クロスワード</h1>
+        <p class="game-subtitle">マスを埋めよう！</p>
+      </div>
+      <div class="start-info">
+        <p class="start-info-text">
+          マスをタップして<br>
+          カタカナを入力してください。<br>
+          全マス正解で<br>
+          クリアです！
+        </p>
+      </div>
+      <button class="btn btn-primary" onclick="startGame()">はじめる</button>
+    </div>
+
+    <!-- ========== ゲーム画面 ========== -->
+    <div id="screen-game" class="screen card">
+
+      <div class="grid-wrapper">
+        <div id="crossword-grid"></div>
+      </div>
+
+      <div class="hint-area">
+        <p class="hint-current-label" id="hint-label">マスをタップしてください</p>
+        <p class="hint-current-text" id="hint-text"></p>
+      </div>
+
+      <div>
+        <div class="hint-tabs">
+          <button class="hint-tab active" id="tab-yoko" onclick="switchTab('yoko')">横のヒント</button>
+          <button class="hint-tab" id="tab-tate" onclick="switchTab('tate')">縦のヒント</button>
+        </div>
+        <div class="hint-list" id="hint-list"></div>
+      </div>
+
+      <div class="game-btns">
+        <button class="btn btn-primary" onclick="checkAnswers()">答え合わせ</button>
+        <button class="btn btn-secondary" onclick="resetInputs()">リセット</button>
+      </div>
+
+    </div>
+
+    <!-- ========== 結果画面 ========== -->
+    <div id="screen-result" class="screen card">
+      <div class="result-icon">🎉</div>
+      <p class="result-title">全問正解！</p>
+      <div class="result-box">
+        <p class="result-box-text">
+          おめでとうございます！<br>
+          すべてのマスを正しく<br>
+          埋めることができました！
+        </p>
+      </div>
+      <button class="btn btn-primary" onclick="startGame()">もう一度あそぶ</button>
+      <button class="btn btn-secondary" onclick="goTop()">トップへもどる</button>
+    </div>
+
+  </div><!-- /#app -->
+
+  <!-- 文字入力ダイアログ -->
+  <div id="input-dialog">
+    <div class="dialog-panel">
+      <p class="dialog-title" id="dialog-title">文字を選んでください</p>
+      <div id="step-row" class="row-buttons"></div>
+      <div id="step-char" class="char-buttons" style="display:none;"></div>
+      <button class="dialog-back-btn" id="dialog-back" style="display:none;" onclick="backToRowSelect()">← 行選択に戻る</button>
+    </div>
+  </div>
+
+  <script src="../config.js"></script>
+
+  <script>
+    // =============================================
+    // カタカナ行データ
+    // =============================================
+    var KANA_ROWS = [
+      { label: 'ア行', chars: ['ア','イ','ウ','エ','オ'] },
+      { label: 'カ行', chars: ['カ','キ','ク','ケ','コ'] },
+      { label: 'サ行', chars: ['サ','シ','ス','セ','ソ'] },
+      { label: 'タ行', chars: ['タ','チ','ツ','テ','ト'] },
+      { label: 'ナ行', chars: ['ナ','ニ','ヌ','ネ','ノ'] },
+      { label: 'ハ行', chars: ['ハ','ヒ','フ','ヘ','ホ'] },
+      { label: 'マ行', chars: ['マ','ミ','ム','メ','モ'] },
+      { label: 'ヤ行', chars: ['ヤ','ユ','ヨ'] },
+      { label: 'ラ行', chars: ['ラ','リ','ル','レ','ロ'] },
+      { label: 'ワ行', chars: ['ワ','ヲ'] },
+      { label: 'ン',   chars: ['ン'], single: true },
+      { label: '消す', chars: [], erase: true },
+    ];
+
+    // =============================================
+    // グローバル変数
+    // =============================================
+    var GRID_SIZE = 8;
+    var gridData = [];       // gridData[r][c] = 文字 or ''（黒マス）
+    var hintsData = [];      // [{ number, dir:'横'|'縦', text }]
+    var numberedCells = [];  // numberedCells[r][c] = 番号 or 0
+    var wordMap = {};        // wordMap["num-yoko"|"num-tate"] = [{row,col},...]
+    var userInput = [];      // userInput[r][c] = ''|カタカナ
+    var checkedCells = [];   // checkedCells[r][c] = null|'correct'|'wrong'
+    var selectedWordKey = null;
+    var focusedCell = null;
+    var currentTab = 'yoko';
+
+    // =============================================
+    // 画面切り替え
+    // =============================================
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(function(el) {
+        el.classList.remove('active');
+      });
+      document.getElementById(screenId).classList.add('active');
+    }
+
+    // =============================================
+    // XSSエスケープ
+    // =============================================
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // =============================================
+    // エラー表示
+    // =============================================
+    function showError(title, detail) {
+      var el = document.getElementById('screen-loading');
+      el.innerHTML =
+        '<div class="error-icon">⚠️</div>' +
+        '<p class="error-title">' + escapeHtml(title) + '</p>' +
+        '<div class="error-message">' + escapeHtml(detail) + '</div>' +
+        '<button class="btn btn-secondary" style="margin-top:8px;" onclick="location.reload()">再読み込み</button>';
+      showScreen('screen-loading');
+    }
+
+    // =============================================
+    // データ取得
+    // =============================================
+    async function fetchData() {
+      if (!CONFIG.SPREADSHEET_ID || CONFIG.SPREADSHEET_ID === 'ここにスプレッドシートIDを入力') {
+        showError('スプレッドシートIDが設定されていません。', 'config.js の SPREADSHEET_ID を入力してください。');
+        return;
+      }
+      if (!CONFIG.API_KEY || CONFIG.API_KEY === 'ここにAPIキーを入力') {
+        showError('APIキーが設定されていません。', 'config.js の API_KEY を入力してください。');
+        return;
+      }
+
+      GRID_SIZE = (CONFIG.GRID_SIZE && Number(CONFIG.GRID_SIZE) > 0) ? Number(CONFIG.GRID_SIZE) : 8;
+      var sheetGrid  = CONFIG.CROSSWORD_SHEET_GRID  || 'クロスワード';
+      var sheetHints = CONFIG.CROSSWORD_SHEET_HINTS || 'クロスワードヒント';
+
+      // 列文字（A=1, H=8, ...）
+      var colLetter = String.fromCharCode(64 + GRID_SIZE);
+      var gridRange  = encodeURIComponent(sheetGrid  + '!A1:' + colLetter + GRID_SIZE);
+      var hintsRange = encodeURIComponent(sheetHints + '!A2:C1000');
+      var base = 'https://sheets.googleapis.com/v4/spreadsheets/' + CONFIG.SPREADSHEET_ID + '/values/';
+      var key  = '?key=' + CONFIG.API_KEY;
+
+      try {
+        var results = await Promise.all([
+          fetch(base + gridRange  + key),
+          fetch(base + hintsRange + key),
+        ]);
+        var gridResp  = results[0];
+        var hintsResp = results[1];
+
+        if (!gridResp.ok) {
+          var e = await gridResp.json().catch(function() { return {}; });
+          showError('グリッドデータの取得に失敗しました（' + gridResp.status + '）',
+            (e.error && e.error.message) ? e.error.message : gridResp.statusText);
+          return;
+        }
+        if (!hintsResp.ok) {
+          var e2 = await hintsResp.json().catch(function() { return {}; });
+          showError('ヒントデータの取得に失敗しました（' + hintsResp.status + '）',
+            (e2.error && e2.error.message) ? e2.error.message : hintsResp.statusText);
+          return;
+        }
+
+        var gridJson  = await gridResp.json();
+        var hintsJson = await hintsResp.json();
+
+        // グリッドパース
+        var rawRows = gridJson.values || [];
+        if (rawRows.length === 0) {
+          showError('グリッドデータが空です。', 'スプレッドシートにグリッドデータを入力してください。');
+          return;
+        }
+        gridData = [];
+        for (var r = 0; r < GRID_SIZE; r++) {
+          gridData[r] = [];
+          for (var c = 0; c < GRID_SIZE; c++) {
+            var rowArr = rawRows[r] || [];
+            gridData[r][c] = (rowArr[c] != null) ? String(rowArr[c]).trim() : '';
+          }
+        }
+
+        // ヒントパース
+        hintsData = [];
+        var rawHints = hintsJson.values || [];
+        rawHints.forEach(function(row) {
+          var num  = parseInt(row[0], 10);
+          var dir  = String(row[1] || '').trim();
+          var text = String(row[2] || '').trim();
+          if (!isNaN(num) && (dir === '横' || dir === '縦') && text) {
+            hintsData.push({ number: num, dir: dir, text: text });
+          }
+        });
+
+        showScreen('screen-start');
+
+      } catch (ex) {
+        showError('ネットワークエラーが発生しました。',
+          'インターネット接続を確認してください。\n(' + ex.message + ')');
+      }
+    }
+
+    // =============================================
+    // ゲーム開始
+    // =============================================
+    function startGame() {
+      assignNumbers();
+      buildWordMap();
+
+      userInput = [];
+      checkedCells = [];
+      for (var r = 0; r < GRID_SIZE; r++) {
+        userInput[r] = [];
+        checkedCells[r] = [];
+        for (var c = 0; c < GRID_SIZE; c++) {
+          userInput[r][c]   = '';
+          checkedCells[r][c] = null;
+        }
+      }
+      selectedWordKey = null;
+      focusedCell = null;
+
+      renderGrid();
+      switchTab('yoko');
+      document.getElementById('hint-label').textContent = 'マスをタップしてください';
+      document.getElementById('hint-text').textContent  = '';
+
+      showScreen('screen-game');
+    }
+
+    // =============================================
+    // 番号付けアルゴリズム
+    // =============================================
+    function assignNumbers() {
+      numberedCells = [];
+      for (var r = 0; r < GRID_SIZE; r++) {
+        numberedCells[r] = [];
+        for (var c = 0; c < GRID_SIZE; c++) {
+          numberedCells[r][c] = 0;
+        }
+      }
+      var nextNum = 1;
+      for (var r = 0; r < GRID_SIZE; r++) {
+        for (var c = 0; c < GRID_SIZE; c++) {
+          if (gridData[r][c] === '') continue;
+          var needsYoko = (c === 0 || gridData[r][c-1] === '') &&
+                          (c+1 < GRID_SIZE && gridData[r][c+1] !== '');
+          var needsTate = (r === 0 || gridData[r-1][c] === '') &&
+                          (r+1 < GRID_SIZE && gridData[r+1][c] !== '');
+          if (needsYoko || needsTate) {
+            numberedCells[r][c] = nextNum++;
+          }
+        }
+      }
+    }
+
+    // =============================================
+    // wordMap 構築
+    // =============================================
+    function buildWordMap() {
+      wordMap = {};
+      for (var r = 0; r < GRID_SIZE; r++) {
+        for (var c = 0; c < GRID_SIZE; c++) {
+          var num = numberedCells[r][c];
+          if (num === 0) continue;
+
+          // 横
+          if ((c === 0 || gridData[r][c-1] === '') &&
+              (c+1 < GRID_SIZE && gridData[r][c+1] !== '')) {
+            var key = num + '-yoko';
+            wordMap[key] = [];
+            for (var cc = c; cc < GRID_SIZE && gridData[r][cc] !== ''; cc++) {
+              wordMap[key].push({ row: r, col: cc });
+            }
+          }
+
+          // 縦
+          if ((r === 0 || gridData[r-1][c] === '') &&
+              (r+1 < GRID_SIZE && gridData[r+1][c] !== '')) {
+            var key2 = num + '-tate';
+            wordMap[key2] = [];
+            for (var rr = r; rr < GRID_SIZE && gridData[rr][c] !== ''; rr++) {
+              wordMap[key2].push({ row: rr, col: c });
+            }
+          }
+        }
+      }
+    }
+
+    // =============================================
+    // グリッド描画
+    // =============================================
+    function renderGrid() {
+      var grid = document.getElementById('crossword-grid');
+      grid.innerHTML = '';
+
+      var availPx  = Math.min(480, window.innerWidth) - 32 - 48;
+      var cellSize = Math.floor(availPx / GRID_SIZE);
+      var charSize = Math.floor(cellSize * 0.52);
+
+      grid.style.gridTemplateColumns = 'repeat(' + GRID_SIZE + ', ' + cellSize + 'px)';
+      grid.style.gridTemplateRows    = 'repeat(' + GRID_SIZE + ', ' + cellSize + 'px)';
+
+      for (var r = 0; r < GRID_SIZE; r++) {
+        for (var c = 0; c < GRID_SIZE; c++) {
+          var cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.style.width  = cellSize + 'px';
+          cell.style.height = cellSize + 'px';
+
+          if (gridData[r][c] === '') {
+            cell.classList.add('black');
+          } else {
+            cell.classList.add('answer');
+
+            var num = numberedCells[r][c];
+            if (num > 0) {
+              var numSpan = document.createElement('span');
+              numSpan.className = 'cell-number';
+              numSpan.textContent = num;
+              cell.appendChild(numSpan);
+            }
+
+            var charSpan = document.createElement('span');
+            charSpan.className = 'cell-char';
+            charSpan.style.fontSize = charSize + 'px';
+            charSpan.id = 'char-' + r + '-' + c;
+            charSpan.textContent = userInput[r][c] || '';
+            cell.appendChild(charSpan);
+
+            cell.addEventListener('click', (function(row, col) {
+              return function() { onCellTap(row, col); };
+            })(r, c));
+          }
+          grid.appendChild(cell);
+        }
+      }
+    }
+
+    // =============================================
+    // セルタップ
+    // =============================================
+    function onCellTap(row, col) {
+      if (gridData[row][col] === '') return;
+
+      var newKey = decideFocusKey(row, col);
+      if (!newKey) return;
+
+      // 同じセルを再タップ → 方向切り替え
+      if (focusedCell &&
+          focusedCell.row === row && focusedCell.col === col &&
+          selectedWordKey === newKey) {
+        var alt = toggleDirection(row, col, newKey);
+        if (alt) newKey = alt;
+      }
+
+      selectedWordKey = newKey;
+      focusedCell = { row: row, col: col };
+
+      updateHighlight();
+      updateHintDisplay();
+      openInputDialog();
+    }
+
+    function decideFocusKey(row, col) {
+      // 現在選択中のワードにこのセルが含まれていれば維持
+      if (selectedWordKey && wordMap[selectedWordKey]) {
+        var cells = wordMap[selectedWordKey];
+        for (var i = 0; i < cells.length; i++) {
+          if (cells[i].row === row && cells[i].col === col) return selectedWordKey;
+        }
+      }
+      // 横ワードを優先
+      for (var key in wordMap) {
+        if (!key.endsWith('-yoko')) continue;
+        var cells = wordMap[key];
+        for (var i = 0; i < cells.length; i++) {
+          if (cells[i].row === row && cells[i].col === col) return key;
+        }
+      }
+      // 縦ワード
+      for (var key in wordMap) {
+        if (!key.endsWith('-tate')) continue;
+        var cells = wordMap[key];
+        for (var i = 0; i < cells.length; i++) {
+          if (cells[i].row === row && cells[i].col === col) return key;
+        }
+      }
+      return null;
+    }
+
+    function toggleDirection(row, col, currentKey) {
+      var altSuffix = currentKey.endsWith('-yoko') ? '-tate' : '-yoko';
+      for (var key in wordMap) {
+        if (!key.endsWith(altSuffix)) continue;
+        var cells = wordMap[key];
+        for (var i = 0; i < cells.length; i++) {
+          if (cells[i].row === row && cells[i].col === col) return key;
+        }
+      }
+      return null;
+    }
+
+    // =============================================
+    // ハイライト更新
+    // =============================================
+    function updateHighlight() {
+      document.querySelectorAll('.cell.answer').forEach(function(el) {
+        el.classList.remove('highlighted', 'focused');
+      });
+      if (!selectedWordKey || !wordMap[selectedWordKey]) return;
+
+      wordMap[selectedWordKey].forEach(function(pos) {
+        var el = getCellEl(pos.row, pos.col);
+        if (el) el.classList.add('highlighted');
+      });
+      if (focusedCell) {
+        var el = getCellEl(focusedCell.row, focusedCell.col);
+        if (el) el.classList.add('focused');
+      }
+    }
+
+    function getCellEl(row, col) {
+      return document.querySelector('.cell[data-row="' + row + '"][data-col="' + col + '"]');
+    }
+
+    // =============================================
+    // ヒント表示更新
+    // =============================================
+    function updateHintDisplay() {
+      if (!selectedWordKey) return;
+      var parts  = selectedWordKey.split('-');
+      var num    = parseInt(parts[0], 10);
+      var dirStr = parts[1] === 'yoko' ? '横' : '縦';
+      var hint   = findHint(num, dirStr);
+
+      document.getElementById('hint-label').textContent = num + ' ' + dirStr;
+      document.getElementById('hint-text').textContent  = hint ? hint.text : '（ヒントなし）';
+
+      // 一覧のアクティブ行更新
+      document.querySelectorAll('.hint-list-item').forEach(function(item) {
+        var match = parseInt(item.dataset.number, 10) === num && item.dataset.dir === dirStr;
+        item.classList.toggle('active-item', match);
+      });
+    }
+
+    function findHint(number, dir) {
+      for (var i = 0; i < hintsData.length; i++) {
+        if (hintsData[i].number === number && hintsData[i].dir === dir) return hintsData[i];
+      }
+      return null;
+    }
+
+    // =============================================
+    // ヒント一覧描画
+    // =============================================
+    function renderHintList(tabDir) {
+      var listEl   = document.getElementById('hint-list');
+      var dirLabel = tabDir === 'yoko' ? '横' : '縦';
+      listEl.innerHTML = '';
+
+      var filtered = hintsData.filter(function(h) { return h.dir === dirLabel; });
+      filtered.sort(function(a, b) { return a.number - b.number; });
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = '<p style="font-size:15px;color:#8c6b4a;padding:8px 0;">ヒントがありません</p>';
+        return;
+      }
+
+      filtered.forEach(function(h) {
+        var item = document.createElement('div');
+        item.className = 'hint-list-item';
+        item.dataset.number = h.number;
+        item.dataset.dir    = h.dir;
+        item.innerHTML =
+          '<span class="hint-list-number">' + h.number + '</span>' +
+          '<span class="hint-list-text">' + escapeHtml(h.text) + '</span>';
+        item.addEventListener('click', (function(hint, dir) {
+          return function() { onHintItemClick(hint, dir); };
+        })(h, tabDir));
+        listEl.appendChild(item);
+      });
+    }
+
+    function onHintItemClick(hint, tabDir) {
+      var key = hint.number + (tabDir === 'yoko' ? '-yoko' : '-tate');
+      if (!wordMap[key]) return;
+      var first = wordMap[key][0];
+      selectedWordKey = key;
+      focusedCell = { row: first.row, col: first.col };
+      updateHighlight();
+      updateHintDisplay();
+      openInputDialog();
+    }
+
+    // =============================================
+    // タブ切り替え
+    // =============================================
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('tab-yoko').classList.toggle('active', tab === 'yoko');
+      document.getElementById('tab-tate').classList.toggle('active', tab === 'tate');
+      renderHintList(tab);
+    }
+
+    // =============================================
+    // 文字入力ダイアログ
+    // =============================================
+    function openInputDialog() {
+      var parts  = selectedWordKey ? selectedWordKey.split('-') : [];
+      var num    = parts[0] || '';
+      var dirStr = parts[1] === 'yoko' ? '横' : parts[1] === 'tate' ? '縦' : '';
+      document.getElementById('dialog-title').textContent =
+        (num && dirStr) ? num + ' ' + dirStr + '　文字を選んでください' : '文字を選んでください';
+
+      document.getElementById('input-dialog').classList.add('open');
+      showRowSelect();
+    }
+
+    function closeInputDialog() {
+      document.getElementById('input-dialog').classList.remove('open');
+    }
+
+    function showRowSelect() {
+      document.getElementById('step-row').style.display  = '';
+      document.getElementById('step-char').style.display = 'none';
+      document.getElementById('dialog-back').style.display = 'none';
+
+      var stepRow = document.getElementById('step-row');
+      stepRow.innerHTML = '';
+
+      KANA_ROWS.forEach(function(rowDef) {
+        var btn = document.createElement('button');
+        btn.className = 'row-btn';
+        if (rowDef.erase)  btn.classList.add('erase-btn');
+        if (rowDef.single) btn.classList.add('single-btn');
+        btn.textContent = rowDef.label;
+        btn.addEventListener('click', (function(rd) {
+          return function() { onRowBtnClick(rd); };
+        })(rowDef));
+        stepRow.appendChild(btn);
+      });
+    }
+
+    function onRowBtnClick(rowDef) {
+      if (rowDef.erase)  { inputChar('');          return; }
+      if (rowDef.single) { inputChar(rowDef.chars[0]); return; }
+      showCharSelect(rowDef);
+    }
+
+    function showCharSelect(rowDef) {
+      document.getElementById('step-row').style.display  = 'none';
+      document.getElementById('step-char').style.display = '';
+      document.getElementById('dialog-back').style.display = '';
+
+      var stepChar = document.getElementById('step-char');
+      stepChar.innerHTML = '';
+
+      rowDef.chars.forEach(function(ch) {
+        var btn = document.createElement('button');
+        btn.className = 'char-btn';
+        btn.textContent = ch;
+        btn.addEventListener('click', (function(c) {
+          return function() { inputChar(c); };
+        })(ch));
+        stepChar.appendChild(btn);
+      });
+    }
+
+    function backToRowSelect() {
+      showRowSelect();
+    }
+
+    function inputChar(ch) {
+      if (!focusedCell) { closeInputDialog(); return; }
+      var row = focusedCell.row;
+      var col = focusedCell.col;
+
+      userInput[row][col]   = ch;
+      checkedCells[row][col] = null;
+
+      var charEl = document.getElementById('char-' + row + '-' + col);
+      if (charEl) charEl.textContent = ch;
+
+      var cellEl = getCellEl(row, col);
+      if (cellEl) cellEl.classList.remove('correct', 'wrong');
+
+      closeInputDialog();
+      advanceFocus();
+    }
+
+    function advanceFocus() {
+      if (!selectedWordKey || !focusedCell) return;
+      var cells = wordMap[selectedWordKey];
+      if (!cells) return;
+
+      var curIdx = -1;
+      for (var i = 0; i < cells.length; i++) {
+        if (cells[i].row === focusedCell.row && cells[i].col === focusedCell.col) {
+          curIdx = i; break;
+        }
+      }
+
+      // 現在位置より後の未入力マスを探す
+      var nextIdx = -1;
+      for (var i = curIdx + 1; i < cells.length; i++) {
+        if (userInput[cells[i].row][cells[i].col] === '') { nextIdx = i; break; }
+      }
+      // なければ先頭から未入力マスを探す
+      if (nextIdx === -1) {
+        for (var i = 0; i < cells.length; i++) {
+          if (userInput[cells[i].row][cells[i].col] === '') { nextIdx = i; break; }
+        }
+      }
+      // 全入力済みなら次のインデックス（末尾なら維持）
+      if (nextIdx === -1 && curIdx + 1 < cells.length) {
+        nextIdx = curIdx + 1;
+      }
+
+      if (nextIdx !== -1) {
+        focusedCell = { row: cells[nextIdx].row, col: cells[nextIdx].col };
+        updateHighlight();
+      }
+    }
+
+    // =============================================
+    // 答え合わせ
+    // =============================================
+    function checkAnswers() {
+      var allCorrect = true;
+
+      for (var r = 0; r < GRID_SIZE; r++) {
+        for (var c = 0; c < GRID_SIZE; c++) {
+          if (gridData[r][c] === '') continue;
+          var cellEl = getCellEl(r, c);
+          if (!cellEl) continue;
+          cellEl.classList.remove('correct', 'wrong');
+
+          if (userInput[r][c] === gridData[r][c]) {
+            checkedCells[r][c] = 'correct';
+            cellEl.classList.add('correct');
+          } else {
+            checkedCells[r][c] = 'wrong';
+            cellEl.classList.add('wrong');
+            allCorrect = false;
+          }
+        }
+      }
+
+      if (allCorrect) {
+        setTimeout(function() { showScreen('screen-result'); }, 800);
+      }
+    }
+
+    // =============================================
+    // リセット
+    // =============================================
+    function resetInputs() {
+      for (var r = 0; r < GRID_SIZE; r++) {
+        for (var c = 0; c < GRID_SIZE; c++) {
+          userInput[r][c]   = '';
+          checkedCells[r][c] = null;
+        }
+      }
+      selectedWordKey = null;
+      focusedCell = null;
+
+      document.querySelectorAll('.cell.answer').forEach(function(el) {
+        el.classList.remove('correct', 'wrong', 'highlighted', 'focused');
+        var r = parseInt(el.dataset.row, 10);
+        var c = parseInt(el.dataset.col, 10);
+        var charEl = document.getElementById('char-' + r + '-' + c);
+        if (charEl) charEl.textContent = '';
+      });
+
+      document.getElementById('hint-label').textContent = 'マスをタップしてください';
+      document.getElementById('hint-text').textContent  = '';
+    }
+
+    // =============================================
+    // ナビゲーション
+    // =============================================
+    function goTop() {
+      window.location.href = '../';
+    }
+
+    // ダイアログ外タップで閉じる
+    document.getElementById('input-dialog').addEventListener('click', function(e) {
+      if (e.target === this) closeInputDialog();
+    });
+
+    // =============================================
+    // 起動
+    // =============================================
+    fetchData();
+  </script>
+</body>
+</html>
