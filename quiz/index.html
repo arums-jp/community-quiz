@@ -571,7 +571,7 @@
 
       // データ取得範囲：A列〜H列（1行目はヘッダーなし、2行目以降にデータと想定）
       // ※ヘッダー行がある場合は A2:H1000 に変更してください
-      const range = encodeURIComponent(CONFIG.SHEET_NAME + '!A1:H1000');
+      const range = encodeURIComponent(CONFIG.SHEET_NAME + '!A2:H1000');
       const url =
         'https://sheets.googleapis.com/v4/spreadsheets/' +
         CONFIG.SPREADSHEET_ID +
