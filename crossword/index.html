@@ -428,15 +428,15 @@
     .char-buttons {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
+      gap: 6px;
     }
 
     .char-btn {
-      padding: 14px 4px;
+      padding: 10px 4px;
       border: 2px solid #e07b39;
-      border-radius: 12px;
+      border-radius: 10px;
       background-color: #fff;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
       color: #4a3728;
       cursor: pointer;
@@ -447,6 +447,30 @@
     }
 
     .char-btn:active { background-color: #fdf0e0; transform: scale(0.96); }
+
+    /* 濁音グループ（薄い青系） */
+    .char-btn.dakuten {
+      border-color: #7aabcf;
+      background-color: #eef6fb;
+    }
+
+    .char-btn.dakuten:active { background-color: #d0eaf7; }
+
+    /* 半濁音グループ（薄い緑系） */
+    .char-btn.handakuten {
+      border-color: #7ac49a;
+      background-color: #eef8f2;
+    }
+
+    .char-btn.handakuten:active { background-color: #ceeedd; }
+
+    /* バリアント行間の区切り */
+    .char-group-divider {
+      grid-column: 1 / -1;
+      height: 1px;
+      background-color: #e0c4a0;
+      margin: 2px 0;
+    }
 
     .dialog-back-btn {
       padding: 10px;
@@ -895,28 +919,39 @@
     function onRowBtnClick(rowDef) {
       if (rowDef.erase)    { inputChar('');              return; }
       if (rowDef.single)   { inputChar(rowDef.chars[0]); return; }
-      if (rowDef.variants) { showVariantSelect(rowDef.variants); return; }
+      if (rowDef.variants) { showCharSelectMulti(rowDef.variants); return; }
       showCharSelect(rowDef);
     }
 
-    // 濁点・半濁点バリアント選択
-    function showVariantSelect(variants) {
-      var stepRow  = document.getElementById('step-row');
-      var stepChar = document.getElementById('step-char');
-      stepChar.style.display = 'none';
+    // 濁音・半濁音を含む行：全グループの文字を一度に表示
+    function showCharSelectMulti(variants) {
+      document.getElementById('step-row').style.display  = 'none';
+      document.getElementById('step-char').style.display = '';
       document.getElementById('dialog-back').style.display = '';
 
-      stepRow.innerHTML = '';
-      stepRow.style.display = '';
+      var stepChar = document.getElementById('step-char');
+      stepChar.innerHTML = '';
 
-      variants.forEach(function(varDef) {
-        var btn = document.createElement('button');
-        btn.className = 'row-btn';
-        btn.textContent = varDef.label;
-        btn.addEventListener('click', (function(vd) {
-          return function() { showCharSelect(vd); };
-        })(varDef));
-        stepRow.appendChild(btn);
+      // グループごとのCSSクラス（0番目=通常, 1番目=濁音, 2番目=半濁音）
+      var groupClasses = ['', 'dakuten', 'handakuten'];
+
+      variants.forEach(function(varDef, gi) {
+        // 2グループ目以降は区切り線を入れる
+        if (gi > 0) {
+          var divider = document.createElement('div');
+          divider.className = 'char-group-divider';
+          stepChar.appendChild(divider);
+        }
+        var cls = 'char-btn' + (groupClasses[gi] ? ' ' + groupClasses[gi] : '');
+        varDef.chars.forEach(function(ch) {
+          var btn = document.createElement('button');
+          btn.className = cls;
+          btn.textContent = ch;
+          btn.addEventListener('click', (function(c) {
+            return function() { inputChar(c); };
+          })(ch));
+          stepChar.appendChild(btn);
+        });
       });
     }
 
