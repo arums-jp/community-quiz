@@ -795,9 +795,13 @@
 
       // スコアに応じてメッセージ変更
       let icon, title, message;
-      if (ratio >= 0.9) {
+      if (ratio === 1.0) {
         icon = '🏆';
-        title = 'すばらしい！満点に近い成績です！';
+        title = '全問正解！パーフェクトです！';
+        message = 'おめでとうございます！全問正解は見事です！地域のことを知り尽くしていますね！';
+      } else if (ratio >= 0.9) {
+        icon = '🎖️';
+        title = 'すばらしい！あと一歩で満点！';
         message = 'ほぼ全問正解！地域のことをよく知っていますね。';
       } else if (ratio >= 0.7) {
         icon = '🎉';
