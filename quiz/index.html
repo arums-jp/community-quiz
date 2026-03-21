@@ -456,6 +456,7 @@
         </p>
       </div>
       <button class="btn btn-primary" onclick="startGame()">はじめる</button>
+      <button class="btn btn-secondary" onclick="goTop()">トップへもどる</button>
     </div>
 
     <!-- ========== 問題画面 ========== -->
@@ -472,6 +473,7 @@
       <div class="choices-list" id="choices-list">
         <!-- 選択肢ボタンはJSで生成 -->
       </div>
+      <button class="btn btn-secondary" onclick="goTop()" style="margin-top:auto;">トップへもどる</button>
     </div>
 
     <!-- ========== フィードバック画面 ========== -->
@@ -485,6 +487,7 @@
         <p class="explanation-text" id="explanation-text">解説がここに入ります</p>
       </div>
       <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()">次へ →</button>
+      <button class="btn btn-secondary" onclick="goTop()">トップへもどる</button>
     </div>
 
     <!-- ========== 結果画面 ========== -->
@@ -500,6 +503,7 @@
       </div>
       <p class="result-message" id="result-message">よくできました！</p>
       <button class="btn btn-primary" onclick="restartGame()">もう一度あそぶ</button>
+      <button class="btn btn-secondary" onclick="goTop()">トップへもどる</button>
     </div>
 
   </div><!-- /#app -->
@@ -829,6 +833,13 @@
      */
     function restartGame() {
       showScreen('screen-start');
+    }
+
+    /**
+     * トップページへ移動する
+     */
+    function goTop() {
+      window.location.href = '../';
     }
 
     // =============================================
