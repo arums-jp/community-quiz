@@ -5,3 +5,4 @@
 # OS生成ファイル
 .DS_Store
 Thumbs.db
+.claude/settings.local.json
