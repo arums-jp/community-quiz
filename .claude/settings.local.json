@@ -5,7 +5,10 @@
       "Bash(cp i:/dev/community-quiz/index.html i:/dev/community-quiz/quiz/index.html)",
       "Bash(git config:*)",
       "Bash(gh repo:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
